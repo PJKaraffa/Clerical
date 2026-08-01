@@ -726,5 +726,94 @@ function exportResults() {
     Votes: row.vote_count
   })));
 }
+async function loadAdminResults() {
+  if (currentProfile?.role !== "admin" || !currentVotingPeriod) {
+    return;
+  }
 
+  const { data, error } = await supabaseClient
+    .from("monthly_vote_results")
+    .select("*")
+    .eq("voting_period_id", currentVotingPeriod.id)
+    .order("vote_count", { ascending: false })
+    .order("last_name", { ascending: true });
+
+  if (error) {
+    console.error("Error loading results:", error);
+    showToast("Unable to load voting results.", true);
+    return;
+  }
+
+  renderAdminResults(data || []);
+}
+
+function renderAdminResults(results) {
+  const leaderBanner = document.getElementById("leaderBanner");
+  const resultsBody = document.getElementById("resultsTableBody");
+
+  resultsBody.innerHTML = "";
+
+  if (!results.length) {
+    leaderBanner.innerHTML = "<strong>No candidates found.</strong>";
+    return;
+  }
+
+  const totalVotes = results.reduce(
+    (sum, row) => sum + Number(row.vote_count || 0),
+    0
+  );
+
+  const highestVoteCount = Number(results[0].vote_count || 0);
+
+  const leaders = results.filter(
+    row => Number(row.vote_count || 0) === highestVoteCount
+  );
+
+  if (highestVoteCount === 0) {
+    leaderBanner.innerHTML = `
+      <strong>No votes have been submitted yet.</strong>
+    `;
+  } else if (leaders.length > 1) {
+    leaderBanner.innerHTML = `
+      <strong>Current Tie:</strong>
+      ${leaders
+        .map(row => `${row.first_name} ${row.last_name}`)
+        .join(", ")}
+      — ${highestVoteCount} votes each
+    `;
+  } else {
+    leaderBanner.innerHTML = `
+      <strong>Current Leader:</strong>
+      ${leaders[0].first_name} ${leaders[0].last_name}
+      — ${highestVoteCount} votes
+    `;
+  }
+
+  results.forEach(row => {
+    const votes = Number(row.vote_count || 0);
+
+    const percentage =
+      totalVotes > 0
+        ? `${((votes / totalVotes) * 100).toFixed(1)}%`
+        : "0.0%";
+
+    resultsBody.insertAdjacentHTML(
+      "beforeend",
+      `
+        <tr>
+          <td>${row.result_rank}</td>
+          <td>
+            <strong>
+              ${escapeHtml(row.first_name)}
+              ${escapeHtml(row.last_name)}
+            </strong>
+          </td>
+          <td>${escapeHtml(row.school_department || "—")}</td>
+          <td>${votes}</td>
+          <td>${percentage}</td>
+        </tr>
+      `
+    );
+  });
+}
 document.addEventListener('DOMContentLoaded', initialize);
