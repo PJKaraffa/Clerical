@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Clerical Employee of the Month</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div id="toast" class="toast" aria-live="polite"></div>
+
+  <section id="loginPage" class="auth-shell">
+    <div class="auth-panel">
+      <div class="brand-mark">EOM</div>
+      <p class="eyebrow">Bridgeport Public Schools</p>
+      <h1>Clerical Employee of the Month</h1>
+      <p class="auth-copy">Sign in with your district account to cast your monthly vote.</p>
+
+      <form id="loginForm" class="stack-form">
+        <label>
+          Email
+          <input id="loginEmail" type="email" autocomplete="email" placeholder="name@bridgeportedu.net" required />
+        </label>
+        <label>
+          Password
+          <input id="loginPassword" type="password" autocomplete="current-password" placeholder="Password" required />
+        </label>
+        <button id="loginButton" class="btn btn-primary btn-full" type="submit">Sign In</button>
+      </form>
+      <p id="loginMessage" class="form-message"></p>
+    </div>
+  </section>
+
+  <div id="appShell" class="app-shell hidden">
+    <header class="topbar">
+      <div class="topbar-brand">
+        <div class="brand-mark small">EOM</div>
+        <div>
+          <strong>Clerical Employee of the Month</strong>
+          <span>Voting Portal</span>
+        </div>
+      </div>
+      <div class="topbar-user">
+        <div>
+          <strong id="headerUserName">User</strong>
+          <span id="headerUserRole">Voter</span>
+        </div>
+        <button id="logoutButton" class="btn btn-light" type="button">Sign Out</button>
+      </div>
+    </header>
+
+    <main class="main-wrap">
+      <nav id="mainTabs" class="tabs">
+        <button class="tab active" data-page="votePage" type="button">Vote</button>
+        <button class="tab admin-only hidden" data-page="adminPage" type="button">Admin Dashboard</button>
+      </nav>
+
+      <section id="votePage" class="page active-page">
+        <div class="hero-card">
+          <div>
+            <p class="eyebrow">Monthly Recognition</p>
+            <h2 id="electionTitle">Employee of the Month</h2>
+            <p id="electionStatusText">Checking the current voting period...</p>
+          </div>
+          <div id="countdownCard" class="countdown-card hidden">
+            <span>Voting closes in</span>
+            <strong id="countdownText">--</strong>
+          </div>
+        </div>
+
+        <div id="voteAlreadySubmitted" class="success-panel hidden">
+          <div class="success-icon">✓</div>
+          <div>
+            <h3>Your vote has been submitted</h3>
+            <p id="submittedVoteText"></p>
+            <small>Submitted votes are final. Contact an administrator if a correction is required.</small>
+          </div>
+        </div>
+
+        <div id="noElectionPanel" class="empty-state hidden">
+          <h3>No election is currently open</h3>
+          <p>Please return when the next Employee of the Month voting period begins.</p>
+        </div>
+
+        <div id="ballotPanel" class="panel hidden">
+          <div class="panel-heading split-heading">
+            <div>
+              <p class="eyebrow">Official Ballot</p>
+              <h3>Select one employee</h3>
+              <p>You may not vote for yourself. Your selection cannot be changed after submission.</p>
+            </div>
+            <label class="search-box">
+              <span>Search</span>
+              <input id="candidateSearch" type="search" placeholder="Name, school, department, or title" />
+            </label>
+          </div>
+
+          <div id="candidateGrid" class="candidate-grid"></div>
+
+          <div class="ballot-footer">
+            <div id="selectedCandidateSummary" class="selection-summary muted">No employee selected</div>
+            <button id="reviewVoteButton" class="btn btn-primary" type="button" disabled>Review Vote</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="adminPage" class="page hidden">
+        <div class="admin-heading">
+          <div>
+            <p class="eyebrow">Administration</p>
+            <h2>Voting Management Dashboard</h2>
+            <p>Manage employees, elections, participation, vote corrections, and monthly winners.</p>
+          </div>
+          <button id="refreshAdminButton" class="btn btn-light" type="button">Refresh Dashboard</button>
+        </div>
+
+        <div class="metric-grid">
+          <article class="metric-card"><span>Eligible Voters</span><strong id="metricEligibleVoters">0</strong></article>
+          <article class="metric-card"><span>Votes Submitted</span><strong id="metricVotesSubmitted">0</strong></article>
+          <article class="metric-card"><span>Participation</span><strong id="metricParticipation">0%</strong></article>
+          <article class="metric-card"><span>Candidates</span><strong id="metricCandidates">0</strong></article>
+        </div>
+
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-admin-view="electionAdminView" type="button">Election</button>
+          <button class="admin-tab" data-admin-view="employeesAdminView" type="button">Employees</button>
+          <button class="admin-tab" data-admin-view="resultsAdminView" type="button">Results</button>
+          <button class="admin-tab" data-admin-view="votesAdminView" type="button">Vote Corrections</button>
+          <button class="admin-tab" data-admin-view="historyAdminView" type="button">History</button>
+        </div>
+
+        <div id="electionAdminView" class="admin-view">
+          <div class="two-column">
+            <article class="panel">
+              <div class="panel-heading"><h3>Create Monthly Election</h3></div>
+              <form id="electionForm" class="form-grid">
+                <label class="full-row">Election Name<input id="electionName" type="text" value="Clerical Employee of the Month" required /></label>
+                <label>Voting Month<input id="votingMonth" type="month" required /></label>
+                <label>Status<select id="electionStatus"><option value="draft">Draft</option><option value="open">Open</option></select></label>
+                <label>Opens At<input id="opensAt" type="datetime-local" required /></label>
+                <label>Closes At<input id="closesAt" type="datetime-local" required /></label>
+                <button class="btn btn-primary full-row" type="submit">Create Election</button>
+              </form>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading"><h3>Current Election</h3></div>
+              <div id="currentElectionAdmin" class="detail-list"><p class="muted">No election selected.</p></div>
+              <div class="button-row wrap">
+                <button id="loadCandidatesButton" class="btn btn-light" type="button">Load Eligible Candidates</button>
+                <button id="openElectionButton" class="btn btn-success" type="button">Open Voting</button>
+                <button id="closeElectionButton" class="btn btn-warning" type="button">Close Voting</button>
+                <button id="finalizeWinnerButton" class="btn btn-primary" type="button">Finalize Winner</button>
+              </div>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-heading split-heading">
+              <div><h3>Voter Participation</h3><p>See who has and has not submitted a vote.</p></div>
+              <button id="exportParticipationButton" class="btn btn-light" type="button">Export CSV</button>
+            </div>
+            <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Department / School</th><th>Status</th><th>Submitted</th></tr></thead><tbody id="participationTableBody"></tbody></table></div>
+          </article>
+        </div>
+
+        <div id="employeesAdminView" class="admin-view hidden">
+          <div class="two-column">
+            <article class="panel">
+              <div class="panel-heading"><h3>Upload Employee List</h3><p>Use CSV or Excel with the required employee columns.</p></div>
+              <input id="employeeFileInput" type="file" accept=".csv,.xlsx,.xls" />
+              <div id="importPreview" class="import-preview muted">No file selected.</div>
+              <button id="importEmployeesButton" class="btn btn-primary" type="button" disabled>Import Employees</button>
+            </article>
+
+            <article class="panel">
+              <div class="panel-heading"><h3>Add or Edit Employee</h3></div>
+              <form id="employeeForm" class="form-grid">
+                <input id="employeeRecordId" type="hidden" />
+                <label>Employee Number<input id="employeeNumber" type="text" required /></label>
+                <label>Email<input id="employeeEmail" type="email" /></label>
+                <label>First Name<input id="employeeFirstName" type="text" required /></label>
+                <label>Last Name<input id="employeeLastName" type="text" required /></label>
+                <label>School / Department<input id="employeeDepartment" type="text" /></label>
+                <label>Job Title<input id="employeeJobTitle" type="text" /></label>
+                <label class="check-label"><input id="employeeCanVote" type="checkbox" checked /> Eligible to vote</label>
+                <label class="check-label"><input id="employeeCanWin" type="checkbox" checked /> Eligible for award</label>
+                <label class="check-label"><input id="employeeActive" type="checkbox" checked /> Active</label>
+                <div class="button-row full-row"><button class="btn btn-primary" type="submit">Save Employee</button><button id="clearEmployeeFormButton" class="btn btn-light" type="button">Clear</button></div>
+              </form>
+            </article>
+          </div>
+
+          <article class="panel">
+            <div class="panel-heading split-heading"><div><h3>Employee List</h3><p id="employeeCountLabel">0 employees</p></div><input id="employeeSearch" class="table-search" type="search" placeholder="Search employees" /></div>
+            <div class="table-wrap"><table><thead><tr><th>Employee</th><th>Email</th><th>School / Department</th><th>Title</th><th>Vote</th><th>Award</th><th>Status</th><th>Action</th></tr></thead><tbody id="employeeTableBody"></tbody></table></div>
+          </article>
+        </div>
+
+        <div id="resultsAdminView" class="admin-view hidden">
+          <article class="panel">
+            <div class="panel-heading split-heading"><div><h3>Current Results</h3><p>Vote totals are visible only to administrators.</p></div><button id="exportResultsButton" class="btn btn-light" type="button">Export Results</button></div>
+            <div id="leaderBanner" class="leader-banner hidden"></div>
+            <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Candidate</th><th>Department / School</th><th>Votes</th><th>Share</th></tr></thead><tbody id="resultsTableBody"></tbody></table></div>
+          </article>
+        </div>
+
+        <div id="votesAdminView" class="admin-view hidden">
+          <article class="panel">
+            <div class="panel-heading"><h3>Submitted Votes</h3><p>Only administrators can correct or remove a vote. Every change is written to the audit log.</p></div>
+            <div class="table-wrap"><table><thead><tr><th>Voter</th><th>Current Selection</th><th>Submitted</th><th>Action</th></tr></thead><tbody id="votesTableBody"></tbody></table></div>
+          </article>
+        </div>
+
+        <div id="historyAdminView" class="admin-view hidden">
+          <article class="panel">
+            <div class="panel-heading"><h3>Election History</h3></div>
+            <div class="table-wrap"><table><thead><tr><th>Month</th><th>Election</th><th>Status</th><th>Winner</th><th>Finalized</th></tr></thead><tbody id="historyTableBody"></tbody></table></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="voteModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="voteModalTitle">
+    <div class="modal-card">
+      <button class="modal-close" data-close-modal="voteModal" type="button">×</button>
+      <p class="eyebrow">Confirm Your Vote</p>
+      <h3 id="voteModalTitle">Submit this employee?</h3>
+      <div id="voteModalCandidate" class="modal-candidate"></div>
+      <div class="warning-box">Once submitted, you cannot change this vote. Only an administrator can make a correction.</div>
+      <div class="button-row end"><button class="btn btn-light" data-close-modal="voteModal" type="button">Go Back</button><button id="submitVoteButton" class="btn btn-primary" type="button">Submit Final Vote</button></div>
+    </div>
+  </div>
+
+  <div id="editVoteModal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button class="modal-close" data-close-modal="editVoteModal" type="button">×</button>
+      <p class="eyebrow">Administrator Correction</p>
+      <h3>Change Submitted Vote</h3>
+      <input id="editVoteId" type="hidden" />
+      <label>New Candidate<select id="editVoteCandidate"></select></label>
+      <label>Reason for Change<textarea id="editVoteReason" rows="4" placeholder="Required audit note"></textarea></label>
+      <div class="button-row end"><button class="btn btn-light" data-close-modal="editVoteModal" type="button">Cancel</button><button id="saveVoteCorrectionButton" class="btn btn-primary" type="button">Save Correction</button></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
