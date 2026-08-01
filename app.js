@@ -127,14 +127,62 @@ async function login(event) {
 
 async function logout() {
   await supabaseClient.auth.signOut();
+  resetApplicationState();
+  showLogin();
+}
+
+function resetApplicationState() {
   state.session = null;
   state.profile = null;
-  showLogin();
+  state.currentEmployee = null;
+  state.currentElection = null;
+  state.candidates = [];
+  state.selectedCandidate = null;
+  state.existingVote = null;
+  state.employees = [];
+  state.participation = [];
+  state.results = [];
+  state.votes = [];
+  state.elections = [];
+  state.importRows = [];
+
+  // Always reset the interface to the Vote page before another user logs in.
+  forceVotePage();
 }
 
 function showLogin() {
   $('loginPage').classList.remove('hidden');
   $('appShell').classList.add('hidden');
+  forceVotePage();
+}
+
+function isAdmin() {
+  return state.profile?.role === 'admin';
+}
+
+function forceVotePage() {
+  $$('.page').forEach(page => page.classList.add('hidden'));
+  $('votePage')?.classList.remove('hidden');
+
+  $$('.tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.page === 'votePage');
+  });
+}
+
+function applyRoleAccess() {
+  const admin = isAdmin();
+
+  // Hide every administrator-only control from voters.
+  $$('.admin-only').forEach(element => {
+    element.classList.toggle('hidden', !admin);
+  });
+
+  // A voter must never remain on an administrator screen left open by
+  // a previous administrator session in the same browser.
+  if (!admin) {
+    forceVotePage();
+    $('adminPage')?.classList.add('hidden');
+  }
 }
 
 async function startApp(session) {
@@ -157,19 +205,39 @@ async function startApp(session) {
   $('headerUserRole').textContent = profile.role === 'admin' ? 'Administrator' : 'Voter';
   $('loginPage').classList.add('hidden');
   $('appShell').classList.remove('hidden');
-  $$('.admin-only').forEach(el => el.classList.toggle('hidden', profile.role !== 'admin'));
+
+  // Apply permissions and force every newly authenticated user to begin
+  // on the Vote page. This prevents a voter from inheriting an admin page
+  // that was open before sign-out.
+  applyRoleAccess();
+  forceVotePage();
 
   await loadVoterPage();
-  if (profile.role === 'admin') await loadAdminDashboard();
+  if (isAdmin()) await loadAdminDashboard();
 }
 
 function switchMainPage(pageId) {
+  // Front-end guard: voters cannot open the Admin Dashboard.
+  if (pageId === 'adminPage' && !isAdmin()) {
+    forceVotePage();
+    showToast('Administrator access is required.', true);
+    return;
+  }
+
+  const targetPage = $(pageId);
+  if (!targetPage) return;
+
   $$('.page').forEach(page => page.classList.add('hidden'));
-  $(pageId).classList.remove('hidden');
+  targetPage.classList.remove('hidden');
   $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === pageId));
 }
 
 function switchAdminView(viewId) {
+  if (!isAdmin()) {
+    forceVotePage();
+    showToast('Administrator access is required.', true);
+    return;
+  }
   $$('.admin-view').forEach(view => view.classList.add('hidden'));
   $(viewId).classList.remove('hidden');
   $$('.admin-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.adminView === viewId));
@@ -334,7 +402,10 @@ async function submitVote() {
 }
 
 async function loadAdminDashboard() {
-  if (state.profile?.role !== 'admin') return;
+  if (!isAdmin()) {
+    forceVotePage();
+    return;
+  }
   const [employeesResult, electionsResult] = await Promise.all([
     supabaseClient.from('employees').select('*').order('last_name'),
     supabaseClient.from('voting_periods').select('*, winner:winner_employee_id(first_name,last_name)').order('voting_month', { ascending: false })
