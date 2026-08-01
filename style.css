@@ -117,22 +117,16 @@ td { font-size: .86rem; }
   .search-box,.table-search { min-width: 0; width: 100%; }
 }
 @media (max-width: 600px) {
-  .topbar {
-    min-height: 76px;
-    padding: 10px 14px;
-  }
-
-  .topbar-brand strong {
-    font-size: 0.85rem;
-  }
-
-  .topbar-user {
-    gap: 8px;
-  }
-
-  #logoutButton {
-    padding: 9px 11px;
-  }
+  .auth-panel { padding: 28px 22px; }
+  .topbar { padding: 10px 14px; }
+  .topbar-brand strong { font-size: .85rem; }
+  .main-wrap { width: min(100% - 20px,1400px); }
+  .metric-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .form-grid { grid-template-columns: 1fr; }
+  .full-row { grid-column: auto; }
+  .ballot-footer { align-items: stretch; flex-direction: column; }
+  .ballot-footer .btn { width: 100%; }
+  .tabs,.admin-tabs { width: 100%; overflow-x: auto; }
 }
 
 /* Enhanced employee ballot */
@@ -153,14 +147,11 @@ td { font-size: .86rem; }
 .confirmation-check input { width: 19px; height: 19px; margin-top: 1px; accent-color: var(--navy); }
 .modal-reason { margin: 0 0 16px; padding: 14px 16px; border-left: 4px solid var(--navy); background: #f7f9fc; border-radius: 8px; }
 .modal-reason p { margin: 6px 0 0; white-space: pre-wrap; color: var(--muted); }
+
 /* =========================================================
-   TOP HEADER POSITIONING FIX
+   VERSION 2 — ROLE ISOLATION AND HEADER/SPACING FIXES
 ========================================================= */
-
-.app-shell {
-  min-height: 100vh;
-}
-
+.app-shell { min-height: 100vh; }
 .topbar {
   width: 100%;
   min-height: 84px;
@@ -169,49 +160,25 @@ td { font-size: .86rem; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ffffff;
-  border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
-  z-index: 1000;
   overflow: visible;
+  z-index: 1000;
 }
-
 .topbar-brand,
-.topbar-user {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-}
+.topbar-user { min-height: 56px; align-items: center; }
+#logoutButton { margin: 0; flex: 0 0 auto; }
+.main-wrap { margin-top: 26px; }
+.page.hidden,
+.admin-view.hidden,
+.admin-only.hidden { display: none !important; }
+#adminPage.hidden { display: none !important; }
+#resultsAdminView.hidden,
+#votesAdminView.hidden,
+#historyAdminView.hidden,
+#employeesAdminView.hidden,
+#electionAdminView.hidden { display: none !important; }
 
-.topbar-user {
-  justify-content: flex-end;
-  text-align: right;
-}
-
-.topbar-user > div {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.topbar-user strong,
-.topbar-brand strong {
-  line-height: 1.25;
-}
-
-.topbar-user span,
-.topbar-brand span {
-  line-height: 1.25;
-}
-
-#logoutButton {
-  flex: 0 0 auto;
-  margin: 0;
-}
-
-.main-wrap {
-  width: min(1400px, calc(100% - 34px));
-  margin: 26px auto 60px;
+@media (max-width: 600px) {
+  .topbar { min-height: 76px; padding: 10px 14px; }
+  .topbar-user { gap: 8px; }
+  #logoutButton { padding: 9px 11px; }
 }

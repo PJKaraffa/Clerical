@@ -127,32 +127,23 @@ async function login(event) {
 
 async function logout() {
   await supabaseClient.auth.signOut();
-  resetSessionState();
-  showLogin();
-}
-
-function resetSessionState() {
   state.session = null;
   state.profile = null;
-  state.currentEmployee = null;
-  state.currentElection = null;
-  state.candidates = [];
-  state.selectedCandidate = null;
-  state.existingVote = null;
-  state.participation = [];
-  state.results = [];
-  state.votes = [];
-
-  $$('.page').forEach(page => page.classList.add('hidden'));
-  $('votePage')?.classList.remove('hidden');
-  $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === 'votePage'));
-  $('adminPage')?.classList.add('hidden');
-  $$('.admin-only').forEach(el => el.classList.add('hidden'));
+  showLogin();
 }
 
 function showLogin() {
   $('loginPage').classList.remove('hidden');
   $('appShell').classList.add('hidden');
+
+  // Reset every protected view so the next person never inherits
+  // the previous user's administrator screen.
+  $$('.page').forEach(page => page.classList.add('hidden'));
+  $('votePage')?.classList.remove('hidden');
+  $('adminPage')?.classList.add('hidden');
+  $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === 'votePage'));
+  $$('.admin-only').forEach(el => el.classList.add('hidden'));
+  switchAdminView('electionAdminView');
 }
 
 async function startApp(session) {
@@ -171,33 +162,28 @@ async function startApp(session) {
 
   state.profile = profile;
   state.currentEmployee = profile.employees || null;
+
+  const isAdmin = String(profile.role || '').toLowerCase() === 'admin';
   $('headerUserName').textContent = profile.full_name || session.user.email;
-  $('headerUserRole').textContent = profile.role === 'admin' ? 'Administrator' : 'Voter';
+  $('headerUserRole').textContent = isAdmin ? 'Administrator' : 'Voter';
   $('loginPage').classList.add('hidden');
   $('appShell').classList.remove('hidden');
 
-  applyRoleAccess();
-  switchMainPage('votePage');
-  await loadVoterPage();
-
-  if (profile.role === 'admin') {
-    await loadAdminDashboard();
-  }
-}
-
-function applyRoleAccess() {
-  const isAdmin = state.profile?.role === 'admin';
+  // Apply role permissions before any data is rendered.
   $$('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
+  $('adminPage').classList.add('hidden');
+  $('votePage').classList.remove('hidden');
+  $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === 'votePage'));
+  switchAdminView('electionAdminView');
 
-  if (!isAdmin) {
-    $('adminPage')?.classList.add('hidden');
-    $('votePage')?.classList.remove('hidden');
-    $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === 'votePage'));
-  }
+  await loadVoterPage();
+  if (isAdmin) await loadAdminDashboard();
 }
 
 function switchMainPage(pageId) {
-  if (pageId === 'adminPage' && state.profile?.role !== 'admin') {
+  const isAdmin = String(state.profile?.role || '').toLowerCase() === 'admin';
+
+  if (pageId === 'adminPage' && !isAdmin) {
     showToast('Administrator access is required.', true);
     pageId = 'votePage';
   }
@@ -206,17 +192,14 @@ function switchMainPage(pageId) {
   $(pageId)?.classList.remove('hidden');
   $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === pageId));
 
-  if (pageId === 'adminPage' && state.profile?.role === 'admin') {
+  if (pageId === 'adminPage' && isAdmin) {
     loadAdminDashboard();
   }
 }
 
 function switchAdminView(viewId) {
-  if (state.profile?.role !== 'admin') {
-    showToast('Administrator access is required.', true);
-    switchMainPage('votePage');
-    return;
-  }
+  const isAdmin = String(state.profile?.role || '').toLowerCase() === 'admin';
+  if (state.profile && !isAdmin) return;
 
   $$('.admin-view').forEach(view => view.classList.add('hidden'));
   $(viewId)?.classList.remove('hidden');
@@ -382,10 +365,8 @@ async function submitVote() {
 }
 
 async function loadAdminDashboard() {
-  if (state.profile?.role !== 'admin') {
-    $('adminPage')?.classList.add('hidden');
-    return;
-  }
+  if (String(state.profile?.role || '').toLowerCase() !== 'admin') return;
+  if (state.profile?.role !== 'admin') return;
   const [employeesResult, electionsResult] = await Promise.all([
     supabaseClient.from('employees').select('*').order('last_name'),
     supabaseClient.from('voting_periods').select('*, winner:winner_employee_id(first_name,last_name)').order('voting_month', { ascending: false })

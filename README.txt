@@ -1,30 +1,30 @@
-CLERICAL EMPLOYEE OF THE MONTH VOTING SYSTEM
+CLERICAL EMPLOYEE OF THE MONTH — VERSION 2
 
-1. Run the Supabase SQL script supplied in the ChatGPT conversation.
-2. Open config.js.
-3. Replace SUPABASE_URL with your Supabase Project URL.
-4. Replace SUPABASE_ANON_KEY with your Supabase anon/public key.
-5. Upload index.html, style.css, app.js, and config.js to your web host.
-6. Create users in Supabase Authentication.
-7. Make sure each user's login email matches the email in the employees table.
-8. Set your own profile role to admin in the profiles table.
+FILES
+- index.html
+- style.css
+- app.js
+- config.js
+- SQL_UPDATE_NOMINATION_REASON.sql
 
-EMPLOYEE IMPORT COLUMNS
-- employee_number
-- first_name
-- last_name
-- email
-- school_department
-- job_title
-- eligible_to_vote
-- eligible_for_award
-- active
+INSTALLATION
+1. Replace the matching files in your GitHub Clerical repository.
+2. Keep your real Supabase URL and anon key in config.js.
+3. Run SQL_UPDATE_NOMINATION_REASON.sql once if nomination_reason has not been added.
+4. Commit the files and wait for GitHub Pages to deploy.
+5. In Chrome, press Ctrl+F5.
 
-The import accepts CSV, XLSX, and XLS files.
+ROLE BEHAVIOR
+- voter: can only see the Vote screen.
+- admin: can see Vote and Admin Dashboard.
+- Admin subpages are hidden unless their tab is selected.
+- Signing out resets all protected screens before the next login.
 
-ENHANCED BALLOT UPDATE
-- Run SQL_UPDATE_NOMINATION_REASON.sql once in the Supabase SQL Editor.
-- The voting page now uses an alphabetical employee dropdown.
-- Selecting an employee displays their initials, title, and school/department.
-- Voters may enter an optional nomination reason up to 250 characters.
-- Voters must check the final-vote confirmation before reviewing and submitting.
+DATABASE ROLES
+The profiles.role field must contain either:
+- admin
+- voter
+
+LIVE RESULTS
+Administrators can open Admin Dashboard > Results to see the current leader,
+rank, votes, and vote share. Voters cannot access this information.
