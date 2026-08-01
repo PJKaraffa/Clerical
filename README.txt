@@ -21,3 +21,10 @@ EMPLOYEE IMPORT COLUMNS
 - active
 
 The import accepts CSV, XLSX, and XLS files.
+
+ENHANCED BALLOT UPDATE
+- Run SQL_UPDATE_NOMINATION_REASON.sql once in the Supabase SQL Editor.
+- The voting page now uses an alphabetical employee dropdown.
+- Selecting an employee displays their initials, title, and school/department.
+- Voters may enter an optional nomination reason up to 250 characters.
+- Voters must check the final-vote confirmation before reviewing and submitting.

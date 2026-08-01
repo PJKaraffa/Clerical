@@ -87,20 +87,42 @@
           <p>Please return when the next Employee of the Month voting period begins.</p>
         </div>
 
-        <div id="ballotPanel" class="panel hidden">
-          <div class="panel-heading split-heading">
-            <div>
-              <p class="eyebrow">Official Ballot</p>
-              <h3>Select one employee</h3>
-              <p>You may not vote for yourself. Your selection cannot be changed after submission.</p>
-            </div>
-            <label class="search-box">
-              <span>Search</span>
-              <input id="candidateSearch" type="search" placeholder="Name, school, department, or title" />
-            </label>
+        <div id="ballotPanel" class="panel ballot-panel hidden">
+          <div class="panel-heading">
+            <p class="eyebrow">Official Ballot</p>
+            <h3>Who would you like to recognize?</h3>
+            <p>Select one eligible clerical employee. You may not vote for yourself, and your selection cannot be changed after submission.</p>
           </div>
 
-          <div id="candidateGrid" class="candidate-grid"></div>
+          <div class="ballot-form-grid">
+            <label class="field-block" for="candidateSelect">
+              <span>Employee</span>
+              <select id="candidateSelect">
+                <option value="">Select an employee...</option>
+              </select>
+              <small>Names are listed alphabetically by last name.</small>
+            </label>
+
+            <div id="candidateDetails" class="candidate-details hidden">
+              <div class="initials-badge" id="candidateInitials">--</div>
+              <div>
+                <strong id="candidateDetailName"></strong>
+                <span id="candidateDetailTitle"></span>
+                <span id="candidateDetailDepartment"></span>
+              </div>
+            </div>
+
+            <label class="field-block" for="nominationReason">
+              <span>Reason for Nomination <em>Optional</em></span>
+              <textarea id="nominationReason" rows="4" maxlength="250" placeholder="Share why this employee deserves recognition..."></textarea>
+              <small><span id="reasonCharacterCount">0</span>/250 characters</small>
+            </label>
+
+            <label class="confirmation-check">
+              <input id="finalVoteConfirmation" type="checkbox" />
+              <span>I understand this is my final vote and only an administrator can make a correction.</span>
+            </label>
+          </div>
 
           <div class="ballot-footer">
             <div id="selectedCandidateSummary" class="selection-summary muted">No employee selected</div>
@@ -233,6 +255,7 @@
       <p class="eyebrow">Confirm Your Vote</p>
       <h3 id="voteModalTitle">Submit this employee?</h3>
       <div id="voteModalCandidate" class="modal-candidate"></div>
+      <div id="voteModalReason" class="modal-reason hidden"></div>
       <div class="warning-box">Once submitted, you cannot change this vote. Only an administrator can make a correction.</div>
       <div class="button-row end"><button class="btn btn-light" data-close-modal="voteModal" type="button">Go Back</button><button id="submitVoteButton" class="btn btn-primary" type="button">Submit Final Vote</button></div>
     </div>

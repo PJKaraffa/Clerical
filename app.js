@@ -82,7 +82,9 @@ async function initialize() {
 function bindEvents() {
   $('loginForm').addEventListener('submit', login);
   $('logoutButton').addEventListener('click', logout);
-  $('candidateSearch').addEventListener('input', renderCandidates);
+  $('candidateSelect').addEventListener('change', handleCandidateSelection);
+  $('nominationReason').addEventListener('input', updateReasonCount);
+  $('finalVoteConfirmation').addEventListener('change', updateReviewButton);
   $('reviewVoteButton').addEventListener('click', openVoteModal);
   $('submitVoteButton').addEventListener('click', submitVote);
   $('refreshAdminButton').addEventListener('click', loadAdminDashboard);
@@ -231,6 +233,10 @@ async function loadVoterPage() {
     .filter(employee => employee.id !== state.currentEmployee?.id)
     .sort((a,b) => a.last_name.localeCompare(b.last_name));
 
+  state.selectedCandidate = null;
+  $('nominationReason').value = '';
+  $('finalVoteConfirmation').checked = false;
+  updateReasonCount();
   renderCandidates();
   $('ballotPanel').classList.remove('hidden');
 }
@@ -250,31 +256,55 @@ function updateCountdown() {
 setInterval(updateCountdown, 60000);
 
 function renderCandidates() {
-  const query = $('candidateSearch').value.trim().toLowerCase();
-  const filtered = state.candidates.filter(employee => [employee.first_name, employee.last_name, employee.school_department, employee.job_title]
-    .filter(Boolean).join(' ').toLowerCase().includes(query));
-
-  $('candidateGrid').innerHTML = filtered.length ? filtered.map(employee => `
-    <button class="candidate-card ${state.selectedCandidate?.id === employee.id ? 'selected' : ''}" data-candidate-id="${employee.id}" type="button">
-      <strong>${escapeHtml(candidateName(employee))}</strong>
-      <span>${escapeHtml(employee.job_title || 'Clerical Employee')}</span>
-      <span>${escapeHtml(employee.school_department || 'Bridgeport Public Schools')}</span>
-    </button>`).join('') : '<p class="muted">No matching candidates found.</p>';
-
-  $$('#candidateGrid .candidate-card').forEach(card => card.addEventListener('click', () => selectCandidate(Number(card.dataset.candidateId))));
+  const select = $('candidateSelect');
+  const currentValue = state.selectedCandidate ? String(state.selectedCandidate.id) : '';
+  select.innerHTML = '<option value="">Select an employee...</option>' + state.candidates.map(employee => {
+    const detail = [employee.school_department, employee.job_title].filter(Boolean).join(' — ');
+    return `<option value="${employee.id}">${escapeHtml(candidateName(employee))}${detail ? ` — ${escapeHtml(detail)}` : ''}</option>`;
+  }).join('');
+  select.value = currentValue;
+  updateCandidateDetails();
+  updateReviewButton();
 }
 
-function selectCandidate(id) {
-  state.selectedCandidate = state.candidates.find(candidate => candidate.id === id) || null;
-  renderCandidates();
-  $('selectedCandidateSummary').textContent = state.selectedCandidate ? `Selected: ${candidateName(state.selectedCandidate)}` : 'No employee selected';
-  $('selectedCandidateSummary').classList.toggle('muted', !state.selectedCandidate);
-  $('reviewVoteButton').disabled = !state.selectedCandidate;
+function handleCandidateSelection() {
+  const id = Number($('candidateSelect').value);
+  state.selectedCandidate = id ? state.candidates.find(candidate => candidate.id === id) || null : null;
+  updateCandidateDetails();
+  updateReviewButton();
+}
+
+function updateCandidateDetails() {
+  const candidate = state.selectedCandidate;
+  $('candidateDetails').classList.toggle('hidden', !candidate);
+  if (!candidate) {
+    $('selectedCandidateSummary').textContent = 'No employee selected';
+    $('selectedCandidateSummary').classList.add('muted');
+    return;
+  }
+  const initials = `${candidate.first_name?.[0] || ''}${candidate.last_name?.[0] || ''}`.toUpperCase();
+  $('candidateInitials').textContent = initials || '--';
+  $('candidateDetailName').textContent = candidateName(candidate);
+  $('candidateDetailTitle').textContent = candidate.job_title || 'Clerical Employee';
+  $('candidateDetailDepartment').textContent = candidate.school_department || 'Bridgeport Public Schools';
+  $('selectedCandidateSummary').textContent = `Selected: ${candidateName(candidate)}`;
+  $('selectedCandidateSummary').classList.remove('muted');
+}
+
+function updateReasonCount() {
+  $('reasonCharacterCount').textContent = $('nominationReason').value.length;
+}
+
+function updateReviewButton() {
+  $('reviewVoteButton').disabled = !(state.selectedCandidate && $('finalVoteConfirmation').checked);
 }
 
 function openVoteModal() {
   if (!state.selectedCandidate) return;
   $('voteModalCandidate').innerHTML = `<strong>${escapeHtml(candidateName(state.selectedCandidate))}</strong><br><span>${escapeHtml(state.selectedCandidate.job_title || '')}</span><br><span>${escapeHtml(state.selectedCandidate.school_department || '')}</span>`;
+  const reason = $('nominationReason').value.trim();
+  $('voteModalReason').classList.toggle('hidden', !reason);
+  $('voteModalReason').innerHTML = reason ? `<strong>Reason for nomination</strong><p>${escapeHtml(reason)}</p>` : '';
   $('voteModal').classList.remove('hidden');
 }
 
@@ -288,7 +318,8 @@ async function submitVote() {
     const { error } = await supabaseClient.from('votes').insert({
       voting_period_id: state.currentElection.id,
       voter_id: state.session.user.id,
-      candidate_employee_id: state.selectedCandidate.id
+      candidate_employee_id: state.selectedCandidate.id,
+      nomination_reason: $('nominationReason').value.trim() || null
     });
     if (error) throw error;
     closeModal('voteModal');
