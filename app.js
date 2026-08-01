@@ -127,11 +127,11 @@ async function login(event) {
 
 async function logout() {
   await supabaseClient.auth.signOut();
-  resetApplicationState();
+  resetSessionState();
   showLogin();
 }
 
-function resetApplicationState() {
+function resetSessionState() {
   state.session = null;
   state.profile = null;
   state.currentEmployee = null;
@@ -139,50 +139,20 @@ function resetApplicationState() {
   state.candidates = [];
   state.selectedCandidate = null;
   state.existingVote = null;
-  state.employees = [];
   state.participation = [];
   state.results = [];
   state.votes = [];
-  state.elections = [];
-  state.importRows = [];
 
-  // Always reset the interface to the Vote page before another user logs in.
-  forceVotePage();
+  $$('.page').forEach(page => page.classList.add('hidden'));
+  $('votePage')?.classList.remove('hidden');
+  $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === 'votePage'));
+  $('adminPage')?.classList.add('hidden');
+  $$('.admin-only').forEach(el => el.classList.add('hidden'));
 }
 
 function showLogin() {
   $('loginPage').classList.remove('hidden');
   $('appShell').classList.add('hidden');
-  forceVotePage();
-}
-
-function isAdmin() {
-  return state.profile?.role === 'admin';
-}
-
-function forceVotePage() {
-  $$('.page').forEach(page => page.classList.add('hidden'));
-  $('votePage')?.classList.remove('hidden');
-
-  $$('.tab').forEach(tab => {
-    tab.classList.toggle('active', tab.dataset.page === 'votePage');
-  });
-}
-
-function applyRoleAccess() {
-  const admin = isAdmin();
-
-  // Hide every administrator-only control from voters.
-  $$('.admin-only').forEach(element => {
-    element.classList.toggle('hidden', !admin);
-  });
-
-  // A voter must never remain on an administrator screen left open by
-  // a previous administrator session in the same browser.
-  if (!admin) {
-    forceVotePage();
-    $('adminPage')?.classList.add('hidden');
-  }
 }
 
 async function startApp(session) {
@@ -206,40 +176,50 @@ async function startApp(session) {
   $('loginPage').classList.add('hidden');
   $('appShell').classList.remove('hidden');
 
-  // Apply permissions and force every newly authenticated user to begin
-  // on the Vote page. This prevents a voter from inheriting an admin page
-  // that was open before sign-out.
   applyRoleAccess();
-  forceVotePage();
-
+  switchMainPage('votePage');
   await loadVoterPage();
-  if (isAdmin()) await loadAdminDashboard();
+
+  if (profile.role === 'admin') {
+    await loadAdminDashboard();
+  }
+}
+
+function applyRoleAccess() {
+  const isAdmin = state.profile?.role === 'admin';
+  $$('.admin-only').forEach(el => el.classList.toggle('hidden', !isAdmin));
+
+  if (!isAdmin) {
+    $('adminPage')?.classList.add('hidden');
+    $('votePage')?.classList.remove('hidden');
+    $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === 'votePage'));
+  }
 }
 
 function switchMainPage(pageId) {
-  // Front-end guard: voters cannot open the Admin Dashboard.
-  if (pageId === 'adminPage' && !isAdmin()) {
-    forceVotePage();
+  if (pageId === 'adminPage' && state.profile?.role !== 'admin') {
     showToast('Administrator access is required.', true);
-    return;
+    pageId = 'votePage';
   }
 
-  const targetPage = $(pageId);
-  if (!targetPage) return;
-
   $$('.page').forEach(page => page.classList.add('hidden'));
-  targetPage.classList.remove('hidden');
+  $(pageId)?.classList.remove('hidden');
   $$('.tab').forEach(tab => tab.classList.toggle('active', tab.dataset.page === pageId));
+
+  if (pageId === 'adminPage' && state.profile?.role === 'admin') {
+    loadAdminDashboard();
+  }
 }
 
 function switchAdminView(viewId) {
-  if (!isAdmin()) {
-    forceVotePage();
+  if (state.profile?.role !== 'admin') {
     showToast('Administrator access is required.', true);
+    switchMainPage('votePage');
     return;
   }
+
   $$('.admin-view').forEach(view => view.classList.add('hidden'));
-  $(viewId).classList.remove('hidden');
+  $(viewId)?.classList.remove('hidden');
   $$('.admin-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.adminView === viewId));
 }
 
@@ -402,8 +382,8 @@ async function submitVote() {
 }
 
 async function loadAdminDashboard() {
-  if (!isAdmin()) {
-    forceVotePage();
+  if (state.profile?.role !== 'admin') {
+    $('adminPage')?.classList.add('hidden');
     return;
   }
   const [employeesResult, electionsResult] = await Promise.all([
@@ -726,94 +706,5 @@ function exportResults() {
     Votes: row.vote_count
   })));
 }
-async function loadAdminResults() {
-  if (currentProfile?.role !== "admin" || !currentVotingPeriod) {
-    return;
-  }
 
-  const { data, error } = await supabaseClient
-    .from("monthly_vote_results")
-    .select("*")
-    .eq("voting_period_id", currentVotingPeriod.id)
-    .order("vote_count", { ascending: false })
-    .order("last_name", { ascending: true });
-
-  if (error) {
-    console.error("Error loading results:", error);
-    showToast("Unable to load voting results.", true);
-    return;
-  }
-
-  renderAdminResults(data || []);
-}
-
-function renderAdminResults(results) {
-  const leaderBanner = document.getElementById("leaderBanner");
-  const resultsBody = document.getElementById("resultsTableBody");
-
-  resultsBody.innerHTML = "";
-
-  if (!results.length) {
-    leaderBanner.innerHTML = "<strong>No candidates found.</strong>";
-    return;
-  }
-
-  const totalVotes = results.reduce(
-    (sum, row) => sum + Number(row.vote_count || 0),
-    0
-  );
-
-  const highestVoteCount = Number(results[0].vote_count || 0);
-
-  const leaders = results.filter(
-    row => Number(row.vote_count || 0) === highestVoteCount
-  );
-
-  if (highestVoteCount === 0) {
-    leaderBanner.innerHTML = `
-      <strong>No votes have been submitted yet.</strong>
-    `;
-  } else if (leaders.length > 1) {
-    leaderBanner.innerHTML = `
-      <strong>Current Tie:</strong>
-      ${leaders
-        .map(row => `${row.first_name} ${row.last_name}`)
-        .join(", ")}
-      — ${highestVoteCount} votes each
-    `;
-  } else {
-    leaderBanner.innerHTML = `
-      <strong>Current Leader:</strong>
-      ${leaders[0].first_name} ${leaders[0].last_name}
-      — ${highestVoteCount} votes
-    `;
-  }
-
-  results.forEach(row => {
-    const votes = Number(row.vote_count || 0);
-
-    const percentage =
-      totalVotes > 0
-        ? `${((votes / totalVotes) * 100).toFixed(1)}%`
-        : "0.0%";
-
-    resultsBody.insertAdjacentHTML(
-      "beforeend",
-      `
-        <tr>
-          <td>${row.result_rank}</td>
-          <td>
-            <strong>
-              ${escapeHtml(row.first_name)}
-              ${escapeHtml(row.last_name)}
-            </strong>
-          </td>
-          <td>${escapeHtml(row.school_department || "—")}</td>
-          <td>${votes}</td>
-          <td>${percentage}</td>
-        </tr>
-      `
-    );
-  });
-}
 document.addEventListener('DOMContentLoaded', initialize);

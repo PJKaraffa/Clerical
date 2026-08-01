@@ -56,8 +56,8 @@
 
     <main class="main-wrap">
       <nav id="mainTabs" class="tabs">
-        <button class="tab active" data-page="votePage" type="button">Vote</button>
-        <button class="tab admin-only hidden" data-page="adminPage" type="button">Admin Dashboard</button>
+        <button id="voteTabButton" class="tab active" data-page="votePage" type="button">Vote</button>
+        <button id="adminTabButton" class="tab admin-only hidden" data-page="adminPage" type="button">Admin Dashboard</button>
       </nav>
 
       <section id="votePage" class="page active-page">
@@ -272,23 +272,7 @@
       <div class="button-row end"><button class="btn btn-light" data-close-modal="editVoteModal" type="button">Cancel</button><button id="saveVoteCorrectionButton" class="btn btn-primary" type="button">Save Correction</button></div>
     </div>
   </div>
-<div id="leaderBanner" class="leader-banner"></div>
 
-<div class="table-wrap">
-  <table>
-    <thead>
-      <tr>
-        <th>Rank</th>
-        <th>Employee</th>
-        <th>School/Department</th>
-        <th>Votes</th>
-        <th>Share</th>
-      </tr>
-    </thead>
-
-    <tbody id="resultsTableBody"></tbody>
-  </table>
-</div>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
